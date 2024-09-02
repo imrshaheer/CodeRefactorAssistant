@@ -1,7 +1,3 @@
-
-
-
-
 def systemPrompt():
 
     systemPrompt = """

@@ -1,68 +1,33 @@
-# python 3.8 (3.8.16) or it doesn't work
-# pip install streamlit streamlit-chat langchain python-dotenv
 import streamlit as st
-from dotenv import load_dotenv
 import os
 from utils import systemPrompt
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.schema import (
-    SystemMessage,
-    HumanMessage,
-    AIMessage
-)
+from langchain.schema import SystemMessage, HumanMessage, AIMessage
+
+# Constants for clarity and potential future changes
+GOOGLE_API_KEY_ENV_VAR = "GOOGLE_API_KEY"
+MODEL_NAME = "gemini-1.5-flash"
 
 def init():
-    # Load the OpenAI API key from the environment variable
-    load_dotenv()
-    
-    # test that the API key exists
-    if os.getenv("GOOGLE_API_KEY") is None or os.getenv("GOOOGLE_API_KEY") == "":
-        print("GOOGLE_API_KEY is not set")
-        exit(1)
-    else:
-        print("GOOGLE_API_KEY is set")
-
-    # setup streamlit page
+    # Streamlit page setup
     st.set_page_config(
-        page_title="RefactorAssistant!",
+        page_title="CodeRefactorAssistant!",
         page_icon="🤖"
     )
 
+def load_llm(model_name):
+    """Loads the LLM based on the provided model name."""
+    return ChatGoogleGenerativeAI(
+        model=model_name,
+        temperature=0,
+        max_tokens=None,
+        timeout=None,
+        max_retries=2,
+        # other params...
+    )
 
-def main():
-    init()
-
-    st.header("Your Code Refactor Assistant! 🤖")
-    st.write("Guiding You to Better Code with Best Practices")
-
-    llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
-                temperature=0,
-                max_tokens=None,
-                timeout=None,
-                max_retries=2,
-                # other params...
-            )
-    
-    # initialize message history
-    if "messages" not in st.session_state:
-        st.session_state.messages = [
-            SystemMessage(content=systemPrompt())
-        ]
-
-    user_input = st.chat_input("Your message: ", key="user_input")
-
-    # handle user input
-    if user_input:
-        st.session_state.messages.append(HumanMessage(content=user_input))
-        response = llm.invoke(st.session_state.messages)
-        st.session_state.messages.append(
-            AIMessage(content=response.content))
-        
-    # st.write(st.session_state.messages)
-
-    # display message history
-    messages = st.session_state.get('messages', [])
+def display_messages(messages):
+    """Displays the chat messages in the Streamlit app."""
     for i, msg in enumerate(messages[1:]):
         if i % 2 == 0:
             with st.chat_message("Human"):
@@ -70,9 +35,45 @@ def main():
         else:
             with st.chat_message("AI"):
                 st.write(msg.content)
-    
 
+def main():
+    """Main function to run the Streamlit app."""
+    init()
 
+    st.header("Your Code Refactor Assistant! 🤖")
+    st.write("Guiding You to Better Code with Best Practices")
+
+    # Sidebar for API key input
+    with st.sidebar:
+        st.header("API Key")
+        api_key = st.text_input("Enter your Google API Key:", type="password")
+        if api_key:
+            os.environ[GOOGLE_API_KEY_ENV_VAR] = api_key
+            st.success("API Key saved!")
+        else:
+            st.info(f"{GOOGLE_API_KEY_ENV_VAR} is not set.")
+            st.stop()
+
+    # Initialize LLM using the load_llm function
+    llm = load_llm(MODEL_NAME)
+
+    # Initialize message history
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            SystemMessage(content=systemPrompt())
+        ]
+
+    user_input = st.chat_input("Your message: ", key="user_input")
+
+    # Handle user input
+    if user_input:
+        st.session_state.messages.append(HumanMessage(content=user_input))
+        response = llm.invoke(st.session_state.messages)
+        st.session_state.messages.append(
+            AIMessage(content=response.content))
+
+    # Display messages using the display_messages function
+    display_messages(st.session_state.messages)
 
 if __name__ == "__main__":
     main()
